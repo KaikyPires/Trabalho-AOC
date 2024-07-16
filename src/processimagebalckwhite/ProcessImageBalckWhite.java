@@ -4,6 +4,8 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
 import javax.imageio.ImageIO;
 
 public class ProcessImageBalckWhite {
@@ -70,67 +72,53 @@ public class ProcessImageBalckWhite {
     }
 
     
-    public static int[][] corrigirImagem(int imgMat[][]) {
+    public static int[][] corrigirImagem(int imgMat[][]) throws InterruptedException {
         int largura = imgMat.length;
         int altura = imgMat[0].length;
-    
+        int numThreads = Runtime.getRuntime().availableProcessors();
+
+        Trabalhador[] trabs = new Trabalhador[numThreads];
+        int chunkSize = largura / numThreads;
+
+        for (int i = 0; i < numThreads; i++) {
+            int startX = i * chunkSize;
+            int endX = (i == numThreads - 1) ? largura : startX + chunkSize;
+
+            int[][] block = new int[endX - startX][altura];
+            for (int x = startX; x < endX; x++) {
+                System.arraycopy(imgMat[x], 0, block[x - startX], 0, altura);
+            }
+
+            Trabalhador.addWork(block);
+        }
+
+        for (int i = 0; i < numThreads; i++) {
+            trabs[i] = new Trabalhador();
+            trabs[i].start();
+        }
+
+        for (Trabalhador t : trabs) {
+            t.join();
+        }
+
         int[][] novaImgMat = new int[largura][altura];
-    
-        // Copiando os valores originais para a nova matriz
-        for (int i = 0; i < largura; i++) {
-            for (int j = 0; j < altura; j++) {
-                novaImgMat[i][j] = imgMat[i][j];
-            }
-        }
-    
-        // Percorrendo a matriz para encontrar pixels com valor 0 ou 255
-        for (int i = 0; i < largura; i++) {
-            for (int j = 0; j < altura; j++) {
-                if (imgMat[i][j] == 0 || imgMat[i][j] == 255) {
-                    int soma = 0;
-                    int contador = 0;
-                    int contadorPretos = 0;
-    
-                    // Somando os pixels vizinhos na matriz 3x3 e contando os pixels pretos
-                    for (int i1 = -1; i1 <= 1; i1++) {
-                        for (int j1 = -1; j1 <= 1; j1++) {
-                            int x = i + i1;
-                            int y = j + j1;
-    
-                            // Verificando se o pixel vizinho está dentro dos limites da imagem
-                            if (x >= 0 && x < largura && y >= 0 && y < altura) {
-                                // Ignorando o pixel central
-                                if (!(i1 == 0 && j1 == 0)) {
-                                    int valorPixel = imgMat[x][y];
-                                    soma += valorPixel;
-                                    contador++;
-                                    if (valorPixel == 0) {
-                                        contadorPretos++;
-                                    }
-                                }
-                            }
-                        }
-                    }
-    
-                    // Se a maioria dos pixels vizinhos for preta, o pixel central vira 0
-                    if (contadorPretos > contador / 2) {
-                        novaImgMat[i][j] = 0;
-                    } else {
-                        // Caso contrário, calcula a média dos pixels vizinhos
-                        if (contador > 0) {
-                            novaImgMat[i][j] = soma / contador;
-                        }
-                    }
+        BlockingQueue<int[][]> resultQueue = Trabalhador.getResultQueue();
+        int chunkIndex = 0;
+
+        while (!resultQueue.isEmpty()) {
+            int[][] partialResult = resultQueue.poll();
+            if (partialResult != null) {
+                int startX = chunkIndex * chunkSize;
+                for (int x = 0; x < partialResult.length; x++) {
+                    System.arraycopy(partialResult[x], 0, novaImgMat[startX + x], 0, partialResult[x].length);
                 }
+                chunkIndex++;
             }
         }
-    
+
         return novaImgMat;
     }
     
-    
-    
-
     public static void main(String[] args) {
 
         File directory = new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas");
@@ -141,13 +129,15 @@ public class ProcessImageBalckWhite {
             int imgMat[][] = lerPixels(img.getAbsolutePath());
             
             //fica a seu critério modificar essa invocação
-           imgMat = corrigirImagem(imgMat);
-            
-            
-           //grava nova imagem com as correções
-           if(imgMat != null){
-             gravarPixels(img.getAbsolutePath(), imgMat);
-           }
+            try {
+                imgMat = corrigirImagem(imgMat);
+
+                if (imgMat != null) {
+                    gravarPixels(img.getAbsolutePath(), imgMat);
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
                  
             System.out.println(imgMat[125][742]);
             System.out.println(imgMat[126][742]);
