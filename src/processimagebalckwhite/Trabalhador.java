@@ -4,16 +4,17 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class Trabalhador extends Thread {
-    private static BlockingQueue<int[][]> workQueue = new LinkedBlockingQueue<>();
-    private static BlockingQueue<int[][]> resultQueue = new LinkedBlockingQueue<>();
+    private static BlockingQueue<Block> workQueue = new LinkedBlockingQueue<>();
+    private static BlockingQueue<Block> resultQueue = new LinkedBlockingQueue<>();
 
     @Override
     public void run() {
         while (!workQueue.isEmpty()) {
             try {
-                int[][] block = workQueue.take();
-                int[][] result = processBlock(block);
-                resultQueue.put(result);
+                Block block = workQueue.take();
+                System.out.println("Thread " + Thread.currentThread().getId() + " processando bloco começando em " + block.startX);
+                int[][] result = processBlock(block.data);
+                resultQueue.put(new Block(block.startX, result));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -65,12 +66,21 @@ public class Trabalhador extends Thread {
         return resultMat;
     }
 
-    public static void addWork(int[][] block) {
+    public static void addWork(Block block) {
         workQueue.add(block);
     }
 
-    public static BlockingQueue<int[][]> getResultQueue() {
+    public static BlockingQueue<Block> getResultQueue() {
         return resultQueue;
     }
 }
 
+class Block {
+    int startX;
+    int[][] data;
+
+    Block(int startX, int[][] data) {
+        this.startX = startX;
+        this.data = data;
+    }
+}

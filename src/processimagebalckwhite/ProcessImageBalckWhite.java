@@ -21,7 +21,8 @@ public class ProcessImageBalckWhite {
             int[][] pixels = new int[largura][altura];
             for (int i = 0; i < largura; i++) {
                 for (int j = 0; j < altura; j++) {
-					//normalizando de forma simplificada para imagem escala de cinza (é esperado ocorrer "clareamento")
+                    // normalizando de forma simplificada para imagem escala de cinza (é esperado
+                    // ocorrer "clareamento")
                     float vermelho = new Color(bufferedImage.getRGB(i, j)).getRed();
                     float verde = new Color(bufferedImage.getRGB(i, j)).getGreen();
                     float azul = new Color(bufferedImage.getRGB(i, j)).getBlue();
@@ -40,17 +41,17 @@ public class ProcessImageBalckWhite {
     }
 
     public static void gravarPixels(String caminhoGravar, int pixels[][]) {
-        
+
         caminhoGravar = caminhoGravar
                 .replace(".png", "_modificado.png")
                 .replace(".jpg", "_modificado.jpg");
-        
+
         int largura = pixels.length;
         int altura = pixels[0].length;
 
         BufferedImage imagem = new BufferedImage(largura, altura, BufferedImage.TYPE_BYTE_GRAY);
 
-        //transformando a mat. em um vetor de bytes
+        // transformando a mat. em um vetor de bytes
         byte bytesPixels[] = new byte[largura * altura];
         for (int x = 0; x < largura; x++) {
             for (int y = 0; y < altura; y++) {
@@ -58,10 +59,10 @@ public class ProcessImageBalckWhite {
             }
         }
 
-        //copaindo todos os bytes para a nova imagem
+        // copaindo todos os bytes para a nova imagem
         imagem.getRaster().setDataElements(0, 0, largura, altura, bytesPixels);
 
-        //criamos o arquivo e gravamos os bytes da imagem nele
+        // criamos o arquivo e gravamos os bytes da imagem nele
         File ImageFile = new File(caminhoGravar);
         try {
             ImageIO.write(imagem, "png", ImageFile);
@@ -71,64 +72,62 @@ public class ProcessImageBalckWhite {
         }
     }
 
-    
     public static int[][] corrigirImagem(int imgMat[][]) throws InterruptedException {
         int largura = imgMat.length;
         int altura = imgMat[0].length;
         int numThreads = Runtime.getRuntime().availableProcessors();
-
+    
         Trabalhador[] trabs = new Trabalhador[numThreads];
         int chunkSize = largura / numThreads;
-
+    
         for (int i = 0; i < numThreads; i++) {
             int startX = i * chunkSize;
             int endX = (i == numThreads - 1) ? largura : startX + chunkSize;
-
+    
             int[][] block = new int[endX - startX][altura];
             for (int x = startX; x < endX; x++) {
                 System.arraycopy(imgMat[x], 0, block[x - startX], 0, altura);
             }
-
-            Trabalhador.addWork(block);
+    
+            Trabalhador.addWork(new Block(startX, block));
+            System.out.println("Bloco adicionado para thread, começando em " + startX);
         }
-
+    
         for (int i = 0; i < numThreads; i++) {
             trabs[i] = new Trabalhador();
             trabs[i].start();
         }
-
+    
         for (Trabalhador t : trabs) {
             t.join();
         }
-
+    
         int[][] novaImgMat = new int[largura][altura];
-        BlockingQueue<int[][]> resultQueue = Trabalhador.getResultQueue();
-        int chunkIndex = 0;
-
+        BlockingQueue<Block> resultQueue = Trabalhador.getResultQueue();
+    
         while (!resultQueue.isEmpty()) {
-            int[][] partialResult = resultQueue.poll();
+            Block partialResult = resultQueue.poll();
             if (partialResult != null) {
-                int startX = chunkIndex * chunkSize;
-                for (int x = 0; x < partialResult.length; x++) {
-                    System.arraycopy(partialResult[x], 0, novaImgMat[startX + x], 0, partialResult[x].length);
+                for (int x = 0; x < partialResult.data.length; x++) {
+                    System.arraycopy(partialResult.data[x], 0, novaImgMat[partialResult.startX + x], 0, partialResult.data[x].length);
                 }
-                chunkIndex++;
             }
         }
-
+    
         return novaImgMat;
     }
     
     public static void main(String[] args) {
 
-        File directory = new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas");
+        File directory = new File(
+                "C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas");
         File imagesFile[] = directory.listFiles();
-        
-        //iamgens que precisam ser corrigidas
-        for(File img : imagesFile){
+
+        // iamgens que precisam ser corrigidas
+        for (File img : imagesFile) {
             int imgMat[][] = lerPixels(img.getAbsolutePath());
-            
-            //fica a seu critério modificar essa invocação
+
+            // fica a seu critério modificar essa invocação
             try {
                 imgMat = corrigirImagem(imgMat);
 
@@ -138,7 +137,7 @@ public class ProcessImageBalckWhite {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-                 
+
             System.out.println(imgMat[125][742]);
             System.out.println(imgMat[126][742]);
             System.out.println(imgMat[127][742]);
@@ -148,11 +147,9 @@ public class ProcessImageBalckWhite {
             System.out.println(imgMat[125][744]);
             System.out.println(imgMat[126][744]);
             System.out.println(imgMat[127][744]);
-            
+
             break;
-           
-            
-            
+
         }
     }
 }
