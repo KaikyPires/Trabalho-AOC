@@ -133,23 +133,31 @@ public class ProcessImageBalckWhite {
 
     public static void main(String[] args) {
 
-        File directory = new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas");
-        File imagesFile[] = directory.listFiles();
-        
-        //iamgens que precisam ser corrigidas
-        for(File img : imagesFile){
-            int imgMat[][] = lerPixels(img.getAbsolutePath());
-            
-            //fica a seu critério modificar essa invocação
-           imgMat = corrigirImagem(imgMat);
-            
-            
-           //grava nova imagem com as correções
-           if(imgMat != null){
-             gravarPixels(img.getAbsolutePath(), imgMat);
-           }
+        File[] imageFiles = {
+            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (1).jpg"),
+            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (2).jpg"),
+            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (3).jpg"),
+            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (4).jpg"),
+            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (5).jpg"),
+            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (6).jpg"),
+            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (7).jpg"),
+            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (8).jpg"),
+            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (9).jpg"),
+            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (10).jpg"),
+            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (11).jpg")
+        };
+    
+        for (File imgFile : imageFiles) {
+            if (imgFile.exists()) {
+                int imgMat[][] = lerPixels(imgFile.getAbsolutePath());
+                imgMat = corrigirImagem(imgMat);
+                gravarPixels(imgFile.getAbsolutePath(), imgMat);
+            } else {
+                System.err.println("Arquivo de imagem não encontrado: " + imgFile.getAbsolutePath());
+            }
+        }
                  
-            System.out.println(imgMat[125][742]);
+            /*System.out.println(imgMat[125][742]);
             System.out.println(imgMat[126][742]);
             System.out.println(imgMat[127][742]);
             System.out.println(imgMat[125][743]);
@@ -159,10 +167,10 @@ public class ProcessImageBalckWhite {
             System.out.println(imgMat[126][744]);
             System.out.println(imgMat[127][744]);
             
-            break;
+            break;*/
            
             
             
-        }
+        
     }
 }
