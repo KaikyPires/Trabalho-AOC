@@ -71,55 +71,43 @@ public class ProcessImageBalckWhite {
             System.err.println("Erro no caminho indicado pela imagem");
         }
     }
-
-    public static int[][] corrigirImagem(int imgMat[][]) throws InterruptedException {
+    public static int[][] corrigirImagem(int imgMat[][]) {
+        int numCpu = Runtime.getRuntime().availableProcessors();
+        Trabalhador[] trabs = new Trabalhador[numCpu];
         int largura = imgMat.length;
         int altura = imgMat[0].length;
-        int numThreads = Runtime.getRuntime().availableProcessors();
+        int[][] result = new int[largura][altura];
     
-        Trabalhador[] trabs = new Trabalhador[numThreads];
-        int chunkSize = largura / numThreads;
+        // Dividindo a imagem em partes iguais para cada thread
+        int chunkSize = largura / numCpu;
+        int startX, endX;
     
-        for (int i = 0; i < numThreads; i++) {
-            int startX = i * chunkSize;
-            int endX = (i == numThreads - 1) ? largura : startX + chunkSize;
-    
-            int[][] block = new int[endX - startX][altura];
-            for (int x = startX; x < endX; x++) {
-                System.arraycopy(imgMat[x], 0, block[x - startX], 0, altura);
+        for (int i = 0; i < numCpu; i++) {
+            startX = i * chunkSize;
+            if (i == numCpu - 1) {
+                endX = largura; // A última thread vai até o final da imagem
+            } else {
+                endX = startX + chunkSize;
             }
-    
-            Trabalhador.addWork(new Block(startX, block));
-            System.out.println("Bloco adicionado para thread, começando em " + startX);
-        }
-    
-        for (int i = 0; i < numThreads; i++) {
-            trabs[i] = new Trabalhador();
+            trabs[i] = new Trabalhador(startX, endX, imgMat, result);
             trabs[i].start();
         }
     
+        // Esperando todas as threads terminarem
         for (Trabalhador t : trabs) {
-            t.join();
-        }
-    
-        int[][] novaImgMat = new int[largura][altura];
-        BlockingQueue<Block> resultQueue = Trabalhador.getResultQueue();
-    
-        while (!resultQueue.isEmpty()) {
-            Block partialResult = resultQueue.poll();
-            if (partialResult != null) {
-                for (int x = 0; x < partialResult.data.length; x++) {
-                    System.arraycopy(partialResult.data[x], 0, novaImgMat[partialResult.startX + x], 0, partialResult.data[x].length);
-                }
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                System.err.println("Erro na sincronização das threads");
             }
         }
     
-        return novaImgMat;
+        return result;
     }
     
     
     public static void main(String[] args) {
-
+        
         File[] imageFiles = {
             new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (1).jpg"),
             new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (2).jpg"),
@@ -136,17 +124,12 @@ public class ProcessImageBalckWhite {
         for (File imgFile : imageFiles) {
             if (imgFile.exists()) {
                 int imgMat[][] = lerPixels(imgFile.getAbsolutePath());
-                try {
-                    imgMat = corrigirImagem(imgMat);
-                } catch (InterruptedException e) {
-                    System.err.println("Erro ao corrigir a imagem: " + imgFile.getName());
-                    e.printStackTrace();
-                }
+                imgMat = corrigirImagem(imgMat);
                 gravarPixels(imgFile.getAbsolutePath(), imgMat);
             } else {
                 System.err.println("Arquivo de imagem não encontrado: " + imgFile.getAbsolutePath());
             }
-
+           
             /*System.out.println(imgMat[125][742]);
             System.out.println(imgMat[126][742]);
             System.out.println(imgMat[127][742]);
