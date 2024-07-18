@@ -105,7 +105,6 @@ public class ProcessImageBalckWhite {
         return result;
     }
     
-    
     public static void main(String[] args) {
         
         File[] imageFiles = {
