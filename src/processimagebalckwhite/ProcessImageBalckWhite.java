@@ -78,16 +78,16 @@ public class ProcessImageBalckWhite {
         int altura = imgMat[0].length;
         int[][] result = new int[largura][altura];
     
-        // Dividindo a imagem em partes iguais para cada thread
-        int chunkSize = largura / numCpu;
+    
+        int blocoTamanho = largura / numCpu;
         int startX, endX;
     
         for (int i = 0; i < numCpu; i++) {
-            startX = i * chunkSize;
+            startX = i * blocoTamanho;
             if (i == numCpu - 1) {
-                endX = largura; // A última thread vai até o final da imagem
+                endX = largura; 
             } else {
-                endX = startX + chunkSize;
+                endX = startX + blocoTamanho;
             }
             trabs[i] = new Trabalhador(startX, endX, imgMat, result);
             trabs[i].start();
