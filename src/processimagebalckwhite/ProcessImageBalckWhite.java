@@ -4,6 +4,8 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
 import javax.imageio.ImageIO;
 
 public class ProcessImageBalckWhite {
@@ -19,7 +21,8 @@ public class ProcessImageBalckWhite {
             int[][] pixels = new int[largura][altura];
             for (int i = 0; i < largura; i++) {
                 for (int j = 0; j < altura; j++) {
-					//normalizando de forma simplificada para imagem escala de cinza (é esperado ocorrer "clareamento")
+                    // normalizando de forma simplificada para imagem escala de cinza (é esperado
+                    // ocorrer "clareamento")
                     float vermelho = new Color(bufferedImage.getRGB(i, j)).getRed();
                     float verde = new Color(bufferedImage.getRGB(i, j)).getGreen();
                     float azul = new Color(bufferedImage.getRGB(i, j)).getBlue();
@@ -38,17 +41,17 @@ public class ProcessImageBalckWhite {
     }
 
     public static void gravarPixels(String caminhoGravar, int pixels[][]) {
-        
+
         caminhoGravar = caminhoGravar
                 .replace(".png", "_modificado.png")
                 .replace(".jpg", "_modificado.jpg");
-        
+
         int largura = pixels.length;
         int altura = pixels[0].length;
 
         BufferedImage imagem = new BufferedImage(largura, altura, BufferedImage.TYPE_BYTE_GRAY);
 
-        //transformando a mat. em um vetor de bytes
+        // transformando a mat. em um vetor de bytes
         byte bytesPixels[] = new byte[largura * altura];
         for (int x = 0; x < largura; x++) {
             for (int y = 0; y < altura; y++) {
@@ -56,10 +59,10 @@ public class ProcessImageBalckWhite {
             }
         }
 
-        //copaindo todos os bytes para a nova imagem
+        // copaindo todos os bytes para a nova imagem
         imagem.getRaster().setDataElements(0, 0, largura, altura, bytesPixels);
 
-        //criamos o arquivo e gravamos os bytes da imagem nele
+        // criamos o arquivo e gravamos os bytes da imagem nele
         File ImageFile = new File(caminhoGravar);
         try {
             ImageIO.write(imagem, "png", ImageFile);
@@ -69,84 +72,65 @@ public class ProcessImageBalckWhite {
         }
     }
 
-    
     public static int[][] corrigirImagem(int imgMat[][]) {
+        int numCpu = Runtime.getRuntime().availableProcessors();
+        Trabalhador[] trabs = new Trabalhador[numCpu];
         int largura = imgMat.length;
         int altura = imgMat[0].length;
-    
-        int[][] novaImgMat = new int[largura][altura];
-    
-        // Copiando os valores originais para a nova matriz
-        for (int i = 0; i < largura; i++) {
-            for (int j = 0; j < altura; j++) {
-                novaImgMat[i][j] = imgMat[i][j];
+        int[][] result = new int[largura][altura];
+
+        int blocoTamanho = largura / numCpu;
+        int startX, endX;
+
+        for (int i = 0; i < numCpu; i++) {
+            startX = i * blocoTamanho;
+            if (i == numCpu - 1) {
+                endX = largura;
+            } else {
+                endX = startX + blocoTamanho;
+            }
+            trabs[i] = new Trabalhador(startX, endX, imgMat, result);
+            trabs[i].start();
+        }
+
+        // Esperando todas as threads terminarem
+        for (Trabalhador t : trabs) {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                System.err.println("Erro na sincronização das threads");
             }
         }
-    
-        // Percorrendo a matriz para encontrar pixels com valor 0 ou 255
-        for (int i = 0; i < largura; i++) {
-            for (int j = 0; j < altura; j++) {
-                if (imgMat[i][j] == 0 || imgMat[i][j] == 255) {
-                    int soma = 0;
-                    int contador = 0;
-                    int contadorPretos = 0;
-    
-                    // Somando os pixels vizinhos na matriz 3x3 e contando os pixels pretos
-                    for (int i1 = -1; i1 <= 1; i1++) {
-                        for (int j1 = -1; j1 <= 1; j1++) {
-                            int x = i + i1;
-                            int y = j + j1;
-    
-                            // Verificando se o pixel vizinho está dentro dos limites da imagem
-                            if (x >= 0 && x < largura && y >= 0 && y < altura) {
-                                // Ignorando o pixel central
-                                if (!(i1 == 0 && j1 == 0)) {
-                                    int valorPixel = imgMat[x][y];
-                                    soma += valorPixel;
-                                    contador++;
-                                    if (valorPixel == 0) {
-                                        contadorPretos++;
-                                    }
-                                }
-                            }
-                        }
-                    }
-    
-                    // Se a maioria dos pixels vizinhos for preta, o pixel central vira 0
-                    if (contadorPretos > contador / 2) {
-                        novaImgMat[i][j] = 0;
-                    } else {
-                        // Caso contrário, calcula a média dos pixels vizinhos
-                        if (contador > 0) {
-                            novaImgMat[i][j] = soma / contador;
-                        }
-                    }
-                }
-            }
-        }
-    
-        return novaImgMat;
+
+        return result;
     }
-    
-    
-    
 
     public static void main(String[] args) {
 
         File[] imageFiles = {
-            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (1).jpg"),
-            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (2).jpg"),
-            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (3).jpg"),
-            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (4).jpg"),
-            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (5).jpg"),
-            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (6).jpg"),
-            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (7).jpg"),
-            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (8).jpg"),
-            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (9).jpg"),
-            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (10).jpg"),
-            new File("C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (11).jpg")
+                new File(
+                        "C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (1).jpg"),
+                new File(
+                        "C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (2).jpg"),
+                new File(
+                        "C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (3).jpg"),
+                new File(
+                        "C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (4).jpg"),
+                new File(
+                        "C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (5).jpg"),
+                new File(
+                        "C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (6).jpg"),
+                new File(
+                        "C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (7).jpg"),
+                new File(
+                        "C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (8).jpg"),
+                new File(
+                        "C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (9).jpg"),
+                new File(
+                        "C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (10).jpg"),
+                new File(
+                        "C:\\Users\\Kaiky Pires\\Downloads\\Trabalho-Saulo\\projeto e arquivos para o problema de imagens\\Imagens\\modificadas\\img (11).jpg")
         };
-    
         for (File imgFile : imageFiles) {
             if (imgFile.exists()) {
                 int imgMat[][] = lerPixels(imgFile.getAbsolutePath());
@@ -155,22 +139,21 @@ public class ProcessImageBalckWhite {
             } else {
                 System.err.println("Arquivo de imagem não encontrado: " + imgFile.getAbsolutePath());
             }
+
+            /*
+             * System.out.println(imgMat[125][742]);
+             * System.out.println(imgMat[126][742]);
+             * System.out.println(imgMat[127][742]);
+             * System.out.println(imgMat[125][743]);
+             * System.out.println(imgMat[126][743]);
+             * System.out.println(imgMat[127][743]);
+             * System.out.println(imgMat[125][744]);
+             * System.out.println(imgMat[126][744]);
+             * System.out.println(imgMat[127][744]);
+             * 
+             * break;
+             */
+
         }
-                 
-            /*System.out.println(imgMat[125][742]);
-            System.out.println(imgMat[126][742]);
-            System.out.println(imgMat[127][742]);
-            System.out.println(imgMat[125][743]);
-            System.out.println(imgMat[126][743]);
-            System.out.println(imgMat[127][743]);
-            System.out.println(imgMat[125][744]);
-            System.out.println(imgMat[126][744]);
-            System.out.println(imgMat[127][744]);
-            
-            break;*/
-           
-            
-            
-        
     }
 }
